@@ -1,0 +1,20 @@
+{
+  "name": "decimalx",
+  "version": "0.0.2",
+  "type": "module",
+  "module": "index.ts",
+  "keywords": [
+    "decimal",
+    "arithmetic",
+    "precision",
+    "bigint",
+    "math"
+  ],
+  "homepage": "https://github.com/mofax/decimal/",
+  "devDependencies": {
+    "bun-types": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
