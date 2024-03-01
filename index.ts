@@ -8,7 +8,17 @@ export interface Decimal {
     distribute(arg: number): Decimal[];
 }
 
-interface DecimalDef {
+/**
+ * Represents the definition of a decimal number.  
+ * `precision` - The total number of digits in the number, including both the integer and the fractional parts.  
+ * `scale` - The number of digits to the right of the decimal point.
+ */
+interface DecimalDefinition {
+    precision: number;
+    scale: number;
+}
+
+interface DecimalDefinition {
     precision: number;
     scale: number;
 }
@@ -18,9 +28,24 @@ export interface NumberDecimal {
     decimal: bigint;
 }
 
-export function parseString(value: string, def: DecimalDef): bigint {
+/**
+ * Coverts a string float into a bigint, based on the provided DecimalDef.
+ * This removes the decimal point and returns everything as one big integer
+ * 
+ * 
+ * @param value - The string to parse.
+ * @param definition - The DecimalDefinition to use for parsing.
+ * @returns The parsed bigint.
+ * @throws If the provided string is not valid as a float.
+ * @throws If the integer part of the string is not within the expected range.
+ * @throws If the decimal part of the string is not within the expected range.
+ * @throws If the decimal part of the string could not be extracted.
+ */
+export function parseString(value: string, definition: DecimalDefinition): bigint {
     const error = new Error("Provided string is not valid as a float");
     const split = value.split(".");
+
+    // We can only have one dot (.)
     if (split.length === 0 || split.length > 2) {
         throw error;
     }
@@ -28,8 +53,8 @@ export function parseString(value: string, def: DecimalDef): bigint {
     const integerPart = () => {
         const partString = split.at(0);
 
-        if (!partString || partString.length > (def.precision - def.scale)) {
-            throw new Error(`Expected integer part of between 0 to ${def.precision - def.scale} numbers`)
+        if (!partString || partString.length > (definition.precision - definition.scale)) {
+            throw new Error(`Expected integer part of between 0 to ${definition.precision - definition.scale} numbers`)
         }
 
         const part = Number(partString);
@@ -46,11 +71,11 @@ export function parseString(value: string, def: DecimalDef): bigint {
         if (!partString || partString.length === 0) {
             return "";
         }
-        if (partString.length > def.scale) {
-            throw new Error(`Only ${def.scale} decimal places allowed`);
+        if (partString.length > definition.scale) {
+            throw new Error(`Only ${definition.scale} decimal places allowed`);
         }
-        if (partString.length < def.scale) {
-            partString = partString.padEnd(def.scale, "0");
+        if (partString.length < definition.scale) {
+            partString = partString.padEnd(definition.scale, "0");
         }
         let num = Number(partString);
         if (Number.isNaN(num)) {
@@ -63,16 +88,28 @@ export function parseString(value: string, def: DecimalDef): bigint {
     return BigInt(`${integerPart()}${decimalPart()}`);
 }
 
-export function DecimalFactory(arg: DecimalDef) {
+/**
+ * This is factory function that returns a class definition that implements the Decimal interface.
+ * The idea is to be able to do accurate mathematical operations on floats
+ * 
+ * @param arg - The definition of the decimal number.
+ * @returns A new class that implements the Decimal interface.
+ */
+export function DecimalFactory(arg: DecimalDefinition) {
     let precision = BigInt(arg.precision);
     let scale = BigInt(arg.scale);
 
+    /**
+     * Represents a high-precision decimal number.
+     * The precision and scale of the number are defined in the DecimalDefinition.
+     * The number is stored as a BigInt to ensure accuracy.
+     */
     return class DecimalX implements Decimal {
         #bigIntPart: bigint;
 
         constructor(source: string | bigint) {
-            let sourceType = typeof source;
-            switch (sourceType) {
+            switch (typeof source) {
+                // If the source is a string, parse it and assign the result to #bigIntPart
                 case "string": {
                     this.#bigIntPart = parseString(source as string, {
                         precision: arg.precision,
@@ -80,15 +117,23 @@ export function DecimalFactory(arg: DecimalDef) {
                     });
                     break;
                 }
+                // If the source is a bigint, assign it to #bigIntPart
                 case "bigint": {
                     this.#bigIntPart = source as bigint;
                     break;
                 }
+                // If the source is neither a string nor a bigint, throw an error
                 default: {
                     throw new Error("Value of unsupported type was provided to Decimal");
                 }
             }
         }
+        /**
+         * Sums one or more Decimals with the current value.
+         * 
+         * @param args - The Decimal instances to add.
+         * @returns A new Decimal instance representing the sum.
+         */
         add(...args: Decimal[]) {
             let accumulator = this.#bigIntPart;
             for (let arg of args) {
@@ -96,9 +141,21 @@ export function DecimalFactory(arg: DecimalDef) {
             }
             return new DecimalX(accumulator);
         }
+        /**
+         * Subtract decimals
+         * 
+         * @param arg - The Decimal instance to subtract.
+         * @returns A new Decimal instance representing the difference.
+         */
         subtract(arg: Decimal) {
             return new DecimalX(this.#bigIntPart - arg.valueAsBigint());
         }
+        /**
+         * Multiplies one or more Decimals with the current value.
+         * 
+         * @param args - The Decimal instances to multiply.
+         * @returns A new Decimal instance representing the product.
+         */
         mul(...args: Decimal[]) {
             let accumulator = this.#bigIntPart;
             for (let arg of args) {
@@ -106,6 +163,13 @@ export function DecimalFactory(arg: DecimalDef) {
             }
             return new DecimalX(accumulator);
         }
+        /**
+         * Distributes the current value into a specified number of parts.
+         * This is essentially a division function, that also returns remainders.
+         * 
+         * @param arg - The number of parts to distribute the value into.
+         * @returns An array of Decimal instances representing the distributed parts.
+         */
         distribute(arg: number): Decimal[] {
             let d = this.#bigIntPart / BigInt(arg);
             let r = this.#bigIntPart % BigInt(arg);
@@ -119,14 +183,17 @@ export function DecimalFactory(arg: DecimalDef) {
 
             return pool;
         }
+
         valueAsBigint() {
             return this.#bigIntPart;
         }
+        /**
+         * Returns the value as a number.
+         * 
+         * @warning This operation could lose precision due to MAX_SAFE_INTEGER limit in javascript.
+         * @returns The value as a number.
+         */
         valueAsNumber(): Number {
-            // const powerOfTen = 10n ** scale;
-            // const integerPart = this.#bigIntPart / powerOfTen;
-            // const decimalPart = this.#bigIntPart % powerOfTen;
-            // return Number(`${integerPart}.${decimalPart}`);
             return Number(this.valueAsString());
         }
         valueAsString(): string {
@@ -135,6 +202,11 @@ export function DecimalFactory(arg: DecimalDef) {
             const decimalPart = this.#bigIntPart % powerOfTen;
             return `${integerPart}.${decimalPart}`;
         }
+        /**
+         * Returns the definition of the decimal number.
+         * 
+         * @returns The precision and scale used for the Decimal.
+         */
         definition() {
             return {
                 precision,
