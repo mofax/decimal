@@ -1,217 +1,180 @@
-export interface Decimal {
-    valueAsBigint(): bigint;
-    valueAsNumber(): Number;
-    valueAsString(): String;
-    add(...arg: Decimal[]): Decimal;
-    mul(...arg: Decimal[]): Decimal;
-    subtract(arg: Decimal): Decimal;
-    distribute(arg: number): Decimal[];
-}
-
-/**
- * Represents the definition of a decimal number.  
- * `precision` - The total number of digits in the number, including both the integer and the fractional parts.  
- * `scale` - The number of digits to the right of the decimal point.
- */
-interface DecimalDefinition {
-    precision: number;
-    scale: number;
-}
-
-interface DecimalDefinition {
-    precision: number;
-    scale: number;
-}
-
-export interface NumberDecimal {
-    integer: bigint;
-    decimal: bigint;
-}
-
-/**
- * Coverts a string float into a bigint, based on the provided DecimalDef.
- * This removes the decimal point and returns everything as one big integer
- * 
- * 
- * @param value - The string to parse.
- * @param definition - The DecimalDefinition to use for parsing.
- * @returns The parsed bigint.
- * @throws If the provided string is not valid as a float.
- * @throws If the integer part of the string is not within the expected range.
- * @throws If the decimal part of the string is not within the expected range.
- * @throws If the decimal part of the string could not be extracted.
- */
-export function parseString(value: string, definition: DecimalDefinition): bigint {
-    const error = new Error("Provided string is not valid as a float");
-    const split = value.split(".");
-
-    // We can only have one dot (.)
-    if (split.length === 0 || split.length > 2) {
-        throw error;
+export class DecimalNumber {
+    /** The number with the decimal removed. eg. 12.345 => 12345 */
+    val: bigint;
+    /** Number of Decimal Places. eg. 12.345 => 3 */
+    scale: bigint;
+    constructor(val: bigint, scale: bigint) {
+        this.scale = scale;
+        this.val = val;
     }
+    /**
+     * Formats a DecimalNumber into a string representation.
+     *
+     * @param {DecimalNumber} num - The decimal number to format.
+     * @returns {string} A string representation of the decimal number.
+     *
+     * @example
+     * const num = { val: 1234567n, scale: 3n };
+     * console.log(formatDecimalNumber(num)); // "1234.567"
+     */
+    toString(): string {
+        const val = this.val;
+        const scale = this.scale;
+        const isNegative = val < 0n;
+        const absVal = abs(val);
 
-    const integerPart = () => {
-        const partString = split.at(0);
+        const strVal = absVal.toString().padStart(Number(scale) + 1, "0");
+        const integerPart = strVal.slice(0, -Number(scale)) || "0";
+        const decimalPart = strVal.slice(-Number(scale));
 
-        if (!partString || partString.length > (definition.precision - definition.scale)) {
-            throw new Error(`Expected integer part of between 0 to ${definition.precision - definition.scale} numbers`)
-        }
+        const formattedNumber = `${integerPart}.${decimalPart}`;
+        return isNegative ? `-${formattedNumber}` : formattedNumber;
+    }
+}
 
-        const part = Number(partString);
+type DecimalParts = {
+    val: readonly [bigint, bigint];
+    lengths: readonly [number, number];
+};
 
-        if (Number.isNaN(part)) {
-            throw new Error(`Could not parse ${partString} as an integer`);
-        }
+const abs = (n: bigint) => (n === -0n || n < 0n ? -n : n);
 
-        return part;
+function bigIntToDecimal(origin: bigint, scale: bigint): DecimalParts {
+    const tenToTheA = BigInt(10) ** scale;
+
+    // Calculate integer part and decimal part using division and modulus
+    const integerPart = origin / tenToTheA; // This will give the integer part
+    const decimalPart = origin % tenToTheA; // This will give the decimal part
+
+    return {
+        val: [integerPart, decimalPart],
+        lengths: [integerPart.toString().length, Number(scale)],
     };
-
-    const decimalPart = () => {
-        let partString = split.at(1);
-        if (!partString || partString.length === 0) {
-            return "";
-        }
-        if (partString.length > definition.scale) {
-            throw new Error(`Only ${definition.scale} decimal places allowed`);
-        }
-        if (partString.length < definition.scale) {
-            partString = partString.padEnd(definition.scale, "0");
-        }
-        let num = Number(partString);
-        if (Number.isNaN(num)) {
-            throw new Error("Could not extract decimal part from the string");
-        }
-
-        return num;
-    };
-
-    return BigInt(`${integerPart()}${decimalPart()}`);
 }
 
 /**
- * This is factory function that returns a class definition that implements the Decimal interface.
- * The idea is to be able to do accurate mathematical operations on floats
- * 
- * @param arg - The definition of the decimal number.
- * @returns A new class that implements the Decimal interface.
+ * Converts a number or string representation of a decimal number into a structured format.
+ *
+ * The function takes an argument that can be either a number or a string. It splits the input
+ * into its integer and decimal components, returning them as a tuple. It also provides the
+ * lengths of both components as a tuple.
+ *
+ * @param {number | string} arg - The input value to convert, which should represent a decimal number.
+ * @throws {Error} Throws an error if the input is not a valid decimal number (i.e., not containing a decimal point or having NaN values).
+ * @returns {{ val: DecimalNumber, lengths: [number, number] }} An object containing:
+ *  - `val`: A readonly tuple representing the integer and decimal parts of the number.
+ *  - `lengths`: An array containing the lengths of the integer and decimal parts as numbers.
+ *
+ * @example
+ * const result = toDecimalNumber("12.34");
+ * console.log(result.val);     // Output: [12, 34]
+ * console.log(result.lengths);  // Output: [2, 2]
+ *
+ * @example
+ * const result = toDecimalNumber(5.678);
+ * console.log(result.val);     // Output: [5, 678]
+ * console.log(result.lengths);  // Output: [1, 3]
+ *
+ * @example
+ * // Throws an error
+ * toDecimalNumber("not.a.number");
  */
-export function DecimalFactory(arg: DecimalDefinition) {
-    let precision = BigInt(arg.precision);
-    let scale = BigInt(arg.scale);
+export function toDecimalNumber(arg: number | string): DecimalNumber {
+    const num = arg.toString();
+    const split = num.split(".");
+    if (split.length !== 2) {
+        throw new Error(`${arg} is not a valid decimal number`);
+    }
+    return new DecimalNumber(BigInt(`${split[0]}${split[1]}`), BigInt(split[1].length) )
+}
 
-    /**
-     * Represents a high-precision decimal number.
-     * The precision and scale of the number are defined in the DecimalDefinition.
-     * The number is stored as a BigInt to ensure accuracy.
-     */
-    return class DecimalX implements Decimal {
-        #bigIntPart: bigint;
+/**
+ * Adds two structured decimal numbers together.
+ *
+ * The function takes two DecimalNumber objects, adds their integer and decimal parts,
+ * and returns the result as a new DecimalNumber. It handles carry-over if the sum of
+ * the decimal parts exceeds the decimal place limit.
+ *
+ * @param {DecimalNumber} a - The first decimal number to add.
+ * @param {DecimalNumber} b - The second decimal number to add.
+ * @returns {DecimalNumber} A new DecimalNumber representing the sum of the two inputs.
+ *
+ * @example
+ * const num1 = toDecimalNumber("12.34");
+ * const num2 = toDecimalNumber("5.678");
+ * const result = add(num1, num2);
+ * console.log(result.val);     // Output: [18, 18]
+ * console.log(result.lengths);  // Output: [2, 3]
+ */
+export function decimalAdd(a: DecimalNumber, b: DecimalNumber): DecimalNumber {
+    const maxDecimal = a.scale > b.scale ? a : b;
+    const smallDecimal = a.scale > b.scale ? b : a;
+    const largeDecimalLength = maxDecimal.scale;
+    const smallDecimalLength = smallDecimal.scale;
+    const smallValExtended = smallDecimal.val * 10n ** (largeDecimalLength - smallDecimalLength);
 
-        constructor(source: string | bigint) {
-            switch (typeof source) {
-                // If the source is a string, parse it and assign the result to #bigIntPart
-                case "string": {
-                    this.#bigIntPart = parseString(source as string, {
-                        precision: arg.precision,
-                        scale: arg.scale,
-                    });
-                    break;
-                }
-                // If the source is a bigint, assign it to #bigIntPart
-                case "bigint": {
-                    this.#bigIntPart = source as bigint;
-                    break;
-                }
-                // If the source is neither a string nor a bigint, throw an error
-                default: {
-                    throw new Error("Value of unsupported type was provided to Decimal");
-                }
-            }
-        }
-        /**
-         * Sums one or more Decimals with the current value.
-         * 
-         * @param args - The Decimal instances to add.
-         * @returns A new Decimal instance representing the sum.
-         */
-        add(...args: Decimal[]) {
-            let accumulator = this.#bigIntPart;
-            for (let arg of args) {
-                accumulator = accumulator + arg.valueAsBigint();
-            }
-            return new DecimalX(accumulator);
-        }
-        /**
-         * Subtract decimals
-         * 
-         * @param arg - The Decimal instance to subtract.
-         * @returns A new Decimal instance representing the difference.
-         */
-        subtract(arg: Decimal) {
-            return new DecimalX(this.#bigIntPart - arg.valueAsBigint());
-        }
-        /**
-         * Multiplies one or more Decimals with the current value.
-         * 
-         * @param args - The Decimal instances to multiply.
-         * @returns A new Decimal instance representing the product.
-         */
-        mul(...args: Decimal[]) {
-            let accumulator = this.#bigIntPart;
-            for (let arg of args) {
-                accumulator = accumulator * arg.valueAsBigint();
-            }
-            return new DecimalX(accumulator);
-        }
-        /**
-         * Distributes the current value into a specified number of parts.
-         * This is essentially a division function, that also returns remainders.
-         * 
-         * @param arg - The number of parts to distribute the value into.
-         * @returns An array of Decimal instances representing the distributed parts.
-         */
-        distribute(arg: number): Decimal[] {
-            let d = this.#bigIntPart / BigInt(arg);
-            let r = this.#bigIntPart % BigInt(arg);
+    return new DecimalNumber(maxDecimal.val + smallValExtended, largeDecimalLength);
+}
 
-            let pool = new Array<Decimal>(arg);
-            for (let count = 0; count < arg; count++) {
-                pool[count] = new DecimalX(d);
-            }
+/**
+ * Subtracts two structured decimal numbers.
+ *
+ * The function takes two DecimalNumber objects, subtracts their integer and decimal parts,
+ * and returns the result as a new DecimalNumber. It handles borrowing if the decimal part of
+ * the first number is smaller than that of the second number.
+ *
+ * @param {DecimalNumber} a - The first decimal number (minuend).
+ * @param {DecimalNumber} b - The second decimal number (subtrahend).
+ * @returns {DecimalNumber} A new DecimalNumber representing the result of the subtraction.
+ *
+ * @example
+ * const num1 = toDecimalNumber("12.34");
+ * const num2 = toDecimalNumber("5.678");
+ * const result = decimalSubtract(num1, num2);
+ * console.log(result.val);     // 6662
+ * console.log(result.scale);    // 3
+ */
+export function decimalSubtract(a: DecimalNumber, b: DecimalNumber): DecimalNumber {
+    const maxDecimal = a.scale > b.scale ? a : b;
+    const largeDecimalLength = maxDecimal.scale;
 
-            pool[pool.length - 1] = new DecimalX(d + r);
+    if (a.scale === largeDecimalLength) {
+        const bExtended = b.val * 10n ** (largeDecimalLength - b.scale);
+        const hold = {
+            val: a.val - bExtended,
+            scale: largeDecimalLength,
+        };
+        return new DecimalNumber(hold.val, hold.scale);
+    } else {
+        const aExtended = a.val * 10n ** (largeDecimalLength - a.scale);
+        const hold = {
+            val: aExtended - b.val,
+            scale: largeDecimalLength,
+        };
+        return new DecimalNumber(hold.val, hold.scale);
+    }
+}
 
-            return pool;
-        }
+/**
+ * Multiplies two structured decimal numbers.
+ *
+ * The function takes two DecimalNumber objects, multiplies their values,
+ * and adjusts the scale accordingly. It returns the result as a new DecimalNumber.
+ *
+ * @param {DecimalNumber} a - The first decimal number to multiply.
+ * @param {DecimalNumber} b - The second decimal number to multiply.
+ * @returns {DecimalNumber} A new DecimalNumber representing the product of the two inputs.
+ *
+ * @example
+ * const num1 = toDecimalNumber("12.34");
+ * const num2 = toDecimalNumber("5.678");
+ * const result = decimalMultiply(num1, num2);
+ * console.log(result.val);     // 70067252
+ * console.log(result.scale);   // 6
+ */
+export function decimalMultiply(a: DecimalNumber, b: DecimalNumber): DecimalNumber {
+    const resultValue = a.val * b.val;
+    const resultScale = a.scale + b.scale;
 
-        valueAsBigint() {
-            return this.#bigIntPart;
-        }
-        /**
-         * Returns the value as a number.
-         * 
-         * @warning This operation could lose precision due to MAX_SAFE_INTEGER limit in javascript.
-         * @returns The value as a number.
-         */
-        valueAsNumber(): Number {
-            return Number(this.valueAsString());
-        }
-        valueAsString(): string {
-            const powerOfTen = 10n ** scale;
-            const integerPart = this.#bigIntPart / powerOfTen;
-            const decimalPart = this.#bigIntPart % powerOfTen;
-            return `${integerPart}.${decimalPart}`;
-        }
-        /**
-         * Returns the definition of the decimal number.
-         * 
-         * @returns The precision and scale used for the Decimal.
-         */
-        definition() {
-            return {
-                precision,
-                scale
-            }
-        }
-    };
+    return new DecimalNumber(resultValue, resultScale);
 }
