@@ -1,7 +1,11 @@
+/**
+ * Represents a decimal number with a specific scale (number of decimal places).
+ *
+ * @param {bigint} val - The whole number before the scale is applied. For example, for 12.345, `val` would be 12345.
+ * @param {bigint} scale - The number of decimal places. For example, for 12.345, `scale` would be 3.
+ */
 export class DecimalNumber {
-    /** The number with the decimal removed. eg. 12.345 => 12345 */
     val: bigint;
-    /** Number of Decimal Places. eg. 12.345 => 3 */
     scale: bigint;
     constructor(val: bigint, scale: bigint) {
         this.scale = scale;
@@ -14,8 +18,10 @@ export class DecimalNumber {
      * @returns {string} A string representation of the decimal number.
      *
      * @example
+     * ```ts
      * const num = { val: 1234567n, scale: 3n };
      * console.log(formatDecimalNumber(num)); // "1234.567"
+     * ```
      */
     toString(): string {
         const val = this.val;
@@ -32,52 +38,21 @@ export class DecimalNumber {
     }
 }
 
-type DecimalParts = {
-    val: readonly [bigint, bigint];
-    lengths: readonly [number, number];
-};
-
 const abs = (n: bigint) => (n === -0n || n < 0n ? -n : n);
 
-function bigIntToDecimal(origin: bigint, scale: bigint): DecimalParts {
-    const tenToTheA = BigInt(10) ** scale;
-
-    // Calculate integer part and decimal part using division and modulus
-    const integerPart = origin / tenToTheA; // This will give the integer part
-    const decimalPart = origin % tenToTheA; // This will give the decimal part
-
-    return {
-        val: [integerPart, decimalPart],
-        lengths: [integerPart.toString().length, Number(scale)],
-    };
-}
-
 /**
- * Converts a number or string representation of a decimal number into a structured format.
+ * Converts a number or string to a DecimalNumber instance.
  *
- * The function takes an argument that can be either a number or a string. It splits the input
- * into its integer and decimal components, returning them as a tuple. It also provides the
- * lengths of both components as a tuple.
- *
- * @param {number | string} arg - The input value to convert, which should represent a decimal number.
- * @throws {Error} Throws an error if the input is not a valid decimal number (i.e., not containing a decimal point or having NaN values).
- * @returns {{ val: DecimalNumber, lengths: [number, number] }} An object containing:
- *  - `val`: A readonly tuple representing the integer and decimal parts of the number.
- *  - `lengths`: An array containing the lengths of the integer and decimal parts as numbers.
+ * @param {number | string} arg - The number or string to convert to a decimal number.
+ * @returns {DecimalNumber} A DecimalNumber instance created from the input.
+ * @throws Will throw an error if the input is not a valid decimal number.
  *
  * @example
- * const result = toDecimalNumber("12.34");
- * console.log(result.val);     // Output: [12, 34]
- * console.log(result.lengths);  // Output: [2, 2]
- *
- * @example
- * const result = toDecimalNumber(5.678);
- * console.log(result.val);     // Output: [5, 678]
- * console.log(result.lengths);  // Output: [1, 3]
- *
- * @example
- * // Throws an error
- * toDecimalNumber("not.a.number");
+ * ```ts
+ * const decimal = toDecimalNumber("1234.567");
+ * console.log(decimal.val); // 1234567n
+ * console.log(decimal.scale); // 3n
+ * ```
  */
 export function toDecimalNumber(arg: number | string): DecimalNumber {
     const num = arg.toString();
@@ -89,22 +64,19 @@ export function toDecimalNumber(arg: number | string): DecimalNumber {
 }
 
 /**
- * Adds two structured decimal numbers together.
+ * Adds two DecimalNumber instances and returns the result.
  *
- * The function takes two DecimalNumber objects, adds their integer and decimal parts,
- * and returns the result as a new DecimalNumber. It handles carry-over if the sum of
- * the decimal parts exceeds the decimal place limit.
- *
- * @param {DecimalNumber} a - The first decimal number to add.
- * @param {DecimalNumber} b - The second decimal number to add.
- * @returns {DecimalNumber} A new DecimalNumber representing the sum of the two inputs.
+ * @param {DecimalNumber} a - The first decimal number.
+ * @param {DecimalNumber} b - The second decimal number.
+ * @returns {DecimalNumber} The result of adding the two decimal numbers.
  *
  * @example
- * const num1 = toDecimalNumber("12.34");
- * const num2 = toDecimalNumber("5.678");
- * const result = add(num1, num2);
- * console.log(result.val);     // Output: [18, 18]
- * console.log(result.lengths);  // Output: [2, 3]
+ * ```ts
+ * const num1 = new DecimalNumber(123n, 2n);
+ * const num2 = new DecimalNumber(456n, 2n);
+ * const sum = decimalAdd(num1, num2);
+ * console.log(sum.toString()); // "5.79"
+ * ```
  */
 export function decimalAdd(a: DecimalNumber, b: DecimalNumber): DecimalNumber {
     const maxDecimal = a.scale > b.scale ? a : b;
@@ -117,22 +89,19 @@ export function decimalAdd(a: DecimalNumber, b: DecimalNumber): DecimalNumber {
 }
 
 /**
- * Subtracts two structured decimal numbers.
+ * Subtracts the second DecimalNumber from the first and returns the result.
  *
- * The function takes two DecimalNumber objects, subtracts their integer and decimal parts,
- * and returns the result as a new DecimalNumber. It handles borrowing if the decimal part of
- * the first number is smaller than that of the second number.
- *
- * @param {DecimalNumber} a - The first decimal number (minuend).
- * @param {DecimalNumber} b - The second decimal number (subtrahend).
- * @returns {DecimalNumber} A new DecimalNumber representing the result of the subtraction.
+ * @param {DecimalNumber} a - The decimal number to subtract from.
+ * @param {DecimalNumber} b - The decimal number to subtract.
+ * @returns {DecimalNumber} The result of the subtraction.
  *
  * @example
- * const num1 = toDecimalNumber("12.34");
- * const num2 = toDecimalNumber("5.678");
- * const result = decimalSubtract(num1, num2);
- * console.log(result.val);     // 6662
- * console.log(result.scale);    // 3
+ * ```ts
+ * const num1 = new DecimalNumber(567n, 2n);
+ * const num2 = new DecimalNumber(123n, 2n);
+ * const difference = decimalSubtract(num1, num2);
+ * console.log(difference.toString()); // "4.44"
+ * ```
  */
 export function decimalSubtract(a: DecimalNumber, b: DecimalNumber): DecimalNumber {
     const maxDecimal = a.scale > b.scale ? a : b;
@@ -156,21 +125,19 @@ export function decimalSubtract(a: DecimalNumber, b: DecimalNumber): DecimalNumb
 }
 
 /**
- * Multiplies two structured decimal numbers.
+ * Multiplies two DecimalNumber instances and returns the result.
  *
- * The function takes two DecimalNumber objects, multiplies their values,
- * and adjusts the scale accordingly. It returns the result as a new DecimalNumber.
- *
- * @param {DecimalNumber} a - The first decimal number to multiply.
- * @param {DecimalNumber} b - The second decimal number to multiply.
- * @returns {DecimalNumber} A new DecimalNumber representing the product of the two inputs.
+ * @param {DecimalNumber} a - The first decimal number.
+ * @param {DecimalNumber} b - The second decimal number.
+ * @returns {DecimalNumber} The result of multiplying the two decimal numbers.
  *
  * @example
- * const num1 = toDecimalNumber("12.34");
- * const num2 = toDecimalNumber("5.678");
- * const result = decimalMultiply(num1, num2);
- * console.log(result.val);     // 70067252
- * console.log(result.scale);   // 6
+ * ```ts
+ * const num1 = new DecimalNumber(12n, 1n);
+ * const num2 = new DecimalNumber(34n, 1n);
+ * const product = decimalMultiply(num1, num2);
+ * console.log(product.toString()); // "40.8"
+ * ```
  */
 export function decimalMultiply(a: DecimalNumber, b: DecimalNumber): DecimalNumber {
     const resultValue = a.val * b.val;
