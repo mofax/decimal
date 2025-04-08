@@ -5,40 +5,50 @@
  * @param {bigint} scale - The number of decimal places. For example, for 12.345, `scale` would be 3.
  */
 export class DecimalNumber {
-    val: bigint;
-    scale: bigint;
-    constructor(val: bigint, scale: bigint) {
-        this.scale = scale;
-        this.val = val;
-    }
-    /**
-     * Formats a DecimalNumber into a string representation.
-     *
-     * @param {DecimalNumber} num - The decimal number to format.
-     * @returns {string} A string representation of the decimal number.
-     *
-     * @example
-     * ```ts
-     * const num = { val: 1234567n, scale: 3n };
-     * console.log(formatDecimalNumber(num)); // "1234.567"
-     * ```
-     */
-    toString(): string {
-        const val = this.val;
-        const scale = this.scale;
-        const isNegative = val < 0n;
-        const absVal = abs(val);
+   val: number;
+   scale: number;
+   constructor(val: number, scale: number) {
+      if (Number.isInteger(val) && Number.isInteger(scale)) {
+         this.scale = scale;
+         this.val = val;
+      } else {
+         throw new Error(`val and scale must both be integers`);
+      }
+   }
+   /**
+    * Formats a DecimalNumber into a string representation.
+    *
+    * @example
+    * ```ts
+    * const num = { val: 1234567n, scale: 3n };
+    * console.log(formatDecimalNumber(num)); // "1234.567"
+    * ```
+    */
+   toString(): string {
+      const valStr = Math.abs(this.val).toString();
+      const scale = this.scale;
+      const isNegative = this.val < 0;
 
-        const strVal = absVal.toString().padStart(Number(scale) + 1, "0");
-        const integerPart = strVal.slice(0, -Number(scale)) || "0";
-        const decimalPart = strVal.slice(-Number(scale));
+      if (scale === 0) return isNegative ? `-${valStr}` : valStr; // No decimal point needed
 
-        const formattedNumber = `${integerPart}.${decimalPart}`;
-        return isNegative ? `-${formattedNumber}` : formattedNumber;
-    }
+      const padLength = Math.max(scale - valStr.length, 0);
+      const paddedVal = "0".repeat(padLength) + valStr;
+      const intPart = paddedVal.slice(0, -scale) || "0";
+      const fracPart = paddedVal.slice(-scale);
+
+      return `${isNegative ? "-" : ""}${intPart}.${fracPart}`;
+   }
 }
 
-const abs = (n: bigint) => (n === -0n || n < 0n ? -n : n);
+function assertIsSafeNumber(value: number, source: number | string): number {
+   if (Number.isNaN(value)) {
+      throw new Error(`${source} is not a number`);
+   }
+   if (value > Number.MAX_SAFE_INTEGER) {
+      throw new Error(`${source} is larger than MAX_SAFE_INTEGER`);
+   }
+   return value;
+}
 
 /**
  * Converts a number or string to a DecimalNumber instance.
@@ -55,12 +65,24 @@ const abs = (n: bigint) => (n === -0n || n < 0n ? -n : n);
  * ```
  */
 export function toDecimalNumber(arg: number | string): DecimalNumber {
-    const num = arg.toString();
-    const split = num.split(".");
-    if (split.length !== 2) {
-        throw new Error(`${arg} is not a valid decimal number`);
-    }
-    return new DecimalNumber(BigInt(`${split[0]}${split[1]}`), BigInt(split[1].length) )
+   const num = arg.toString();
+   const split = num.split(".");
+   let value: number;
+   let scale: number;
+   if (split.length === 1) {
+      value = Number(split[0]);
+      scale = 0;
+      assertIsSafeNumber(value, arg);
+      return new DecimalNumber(value, scale);
+   } else if (split.length === 2) {
+      value = Number(split[0] + split[1]);
+      scale = Number(split[1].length);
+      assertIsSafeNumber(value, arg);
+      assertIsSafeNumber(scale, arg);
+      return new DecimalNumber(value, scale);
+   } else {
+      throw new Error(`${arg} is not a valid decimal number`);
+   }
 }
 
 /**
@@ -79,13 +101,17 @@ export function toDecimalNumber(arg: number | string): DecimalNumber {
  * ```
  */
 export function decimalAdd(a: DecimalNumber, b: DecimalNumber): DecimalNumber {
-    const maxDecimal = a.scale > b.scale ? a : b;
-    const smallDecimal = a.scale > b.scale ? b : a;
-    const largeDecimalLength = maxDecimal.scale;
-    const smallDecimalLength = smallDecimal.scale;
-    const smallValExtended = smallDecimal.val * 10n ** (largeDecimalLength - smallDecimalLength);
+   const maxDecimal = a.scale > b.scale ? a : b;
+   const smallDecimal = a.scale > b.scale ? b : a;
+   const largeDecimalLength = maxDecimal.scale;
+   const smallDecimalLength = smallDecimal.scale;
+   const smallValExtended =
+      smallDecimal.val * 10 ** (largeDecimalLength - smallDecimalLength);
 
-    return new DecimalNumber(maxDecimal.val + smallValExtended, largeDecimalLength);
+   return new DecimalNumber(
+      maxDecimal.val + smallValExtended,
+      largeDecimalLength,
+   );
 }
 
 /**
@@ -103,25 +129,28 @@ export function decimalAdd(a: DecimalNumber, b: DecimalNumber): DecimalNumber {
  * console.log(difference.toString()); // "4.44"
  * ```
  */
-export function decimalSubtract(a: DecimalNumber, b: DecimalNumber): DecimalNumber {
-    const maxDecimal = a.scale > b.scale ? a : b;
-    const largeDecimalLength = maxDecimal.scale;
+export function decimalSubtract(
+   a: DecimalNumber,
+   b: DecimalNumber,
+): DecimalNumber {
+   const maxDecimal = a.scale > b.scale ? a : b;
+   const largeDecimalLength = maxDecimal.scale;
 
-    if (a.scale === largeDecimalLength) {
-        const bExtended = b.val * 10n ** (largeDecimalLength - b.scale);
-        const hold = {
-            val: a.val - bExtended,
-            scale: largeDecimalLength,
-        };
-        return new DecimalNumber(hold.val, hold.scale);
-    } else {
-        const aExtended = a.val * 10n ** (largeDecimalLength - a.scale);
-        const hold = {
-            val: aExtended - b.val,
-            scale: largeDecimalLength,
-        };
-        return new DecimalNumber(hold.val, hold.scale);
-    }
+   if (a.scale === largeDecimalLength) {
+      const bExtended = b.val * 10 ** (largeDecimalLength - b.scale);
+      const hold = {
+         val: a.val - bExtended,
+         scale: largeDecimalLength,
+      };
+      return new DecimalNumber(hold.val, hold.scale);
+   } else {
+      const aExtended = a.val * 10 ** (largeDecimalLength - a.scale);
+      const hold = {
+         val: aExtended - b.val,
+         scale: largeDecimalLength,
+      };
+      return new DecimalNumber(hold.val, hold.scale);
+   }
 }
 
 /**
@@ -139,9 +168,12 @@ export function decimalSubtract(a: DecimalNumber, b: DecimalNumber): DecimalNumb
  * console.log(product.toString()); // "40.8"
  * ```
  */
-export function decimalMultiply(a: DecimalNumber, b: DecimalNumber): DecimalNumber {
-    const resultValue = a.val * b.val;
-    const resultScale = a.scale + b.scale;
+export function decimalMultiply(
+   a: DecimalNumber,
+   b: DecimalNumber,
+): DecimalNumber {
+   const resultValue = a.val * b.val;
+   const resultScale = a.scale + b.scale;
 
-    return new DecimalNumber(resultValue, resultScale);
+   return new DecimalNumber(resultValue, resultScale);
 }
