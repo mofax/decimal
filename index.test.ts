@@ -9,67 +9,67 @@ import {
 } from "./index"; // Adjust the import path if necessary
 
 // Helper function for creating instances
-const dn = (val: number, scale: number) => new DecimalNumber(val, scale);
+const dn = (val: number | bigint, scale: number) => new DecimalNumber(val, scale);
 
 describe("DecimalNumber Class and Utilities", () => {
    // --- DecimalNumber Constructor Tests ---
    describe("DecimalNumber Constructor", () => {
       it("should create instances with valid integer inputs", () => {
          const dec = new DecimalNumber(12345, 3);
-         expect(dec.val).toBe(12345);
+         expect(dec.val).toBe(12345n);
          expect(dec.scale).toBe(3);
       });
 
       it("should handle zero values correctly", () => {
          const dec = new DecimalNumber(0, 2);
-         expect(dec.val).toBe(0);
+         expect(dec.val).toBe(0n);
          expect(dec.scale).toBe(2);
       });
 
       it("should handle negative values correctly", () => {
          const dec = new DecimalNumber(-500, 1);
-         expect(dec.val).toBe(-500);
+         expect(dec.val).toBe(-500n);
          expect(dec.scale).toBe(1);
       });
 
       // --- Input Validation / Security ---
       it("should throw error for non-integer val", () => {
          expect(() => new DecimalNumber(12.34, 2)).toThrow(
-            "val and scale must both be integers",
+            "val must be an integer",
          );
       });
 
       it("should throw error for non-integer scale", () => {
          expect(() => new DecimalNumber(1234, 2.5)).toThrow(
-            "val and scale must both be integers",
+            "scale must be an integer",
          );
       });
 
       it("should throw error for NaN val", () => {
          // Note: Number.isInteger(NaN) is false, so the existing check handles this
          expect(() => new DecimalNumber(NaN, 2)).toThrow(
-            "val and scale must both be integers",
+            "val must be an integer",
          );
       });
 
       it("should throw error for NaN scale", () => {
          // Note: Number.isInteger(NaN) is false, so the existing check handles this
          expect(() => new DecimalNumber(123, NaN)).toThrow(
-            "val and scale must both be integers",
+            "scale must be an integer",
          );
       });
 
       it("should throw error for Infinity val", () => {
          // Note: Number.isInteger(Infinity) is false
          expect(() => new DecimalNumber(Infinity, 2)).toThrow(
-            "val and scale must both be integers",
+            "val must be an integer",
          );
       });
 
       it("should throw error for Infinity scale", () => {
          // Note: Number.isInteger(Infinity) is false
          expect(() => new DecimalNumber(123, Infinity)).toThrow(
-            "val and scale must both be integers",
+            "scale must be an integer",
          );
       });
 
@@ -132,72 +132,72 @@ describe("DecimalNumber Class and Utilities", () => {
       // --- Valid Inputs ---
       it("should convert valid positive string decimals", () => {
          const result = toDecimalNumber("12.34");
-         expect(result.val).toBe(1234);
+         expect(result.val).toBe(1234n);
          expect(result.scale).toBe(2);
       });
 
       it("should convert valid negative string decimals", () => {
          const result = toDecimalNumber("-56.789");
-         expect(result.val).toBe(-56789);
+         expect(result.val).toBe(-56789n);
          expect(result.scale).toBe(3);
       });
 
       it("should convert valid positive string integers", () => {
          const result = toDecimalNumber("123");
-         expect(result.val).toBe(123);
+         expect(result.val).toBe(123n);
          expect(result.scale).toBe(0);
       });
 
       it("should convert valid negative string integers", () => {
          const result = toDecimalNumber("-456");
-         expect(result.val).toBe(-456);
+         expect(result.val).toBe(-456n);
          expect(result.scale).toBe(0);
       });
 
       it("should convert valid positive numbers", () => {
          const result = toDecimalNumber(5.678);
-         expect(result.val).toBe(5678);
+         expect(result.val).toBe(5678n);
          expect(result.scale).toBe(3);
       });
 
       it("should convert valid negative numbers", () => {
          const result = toDecimalNumber(-9.1);
-         expect(result.val).toBe(-91);
+         expect(result.val).toBe(-91n);
          expect(result.scale).toBe(1);
       });
 
       it("should convert valid integers (number type)", () => {
          const result = toDecimalNumber(789);
-         expect(result.val).toBe(789);
+         expect(result.val).toBe(789n);
          expect(result.scale).toBe(0);
       });
 
       it("should convert zero correctly (string and number)", () => {
          let result = toDecimalNumber("0");
-         expect(result.val).toBe(0);
+         expect(result.val).toBe(0n);
          expect(result.scale).toBe(0);
          result = toDecimalNumber("0.00");
-         expect(result.val).toBe(0); // Value becomes 0
+         expect(result.val).toBe(0n); // Value becomes 0
          expect(result.scale).toBe(2); // Scale is preserved
          result = toDecimalNumber("-0.0");
-         expect(result.val).toBe(0); // Value becomes 0
+         expect(result.val).toBe(0n); // Value becomes 0
          expect(result.scale).toBe(1);
          result = toDecimalNumber(0);
-         expect(result.val).toBe(0);
+         expect(result.val).toBe(0n);
          expect(result.scale).toBe(0);
          result = toDecimalNumber(-0);
-         expect(result.val).toBe(0);
+         expect(result.val).toBe(0n);
          expect(result.scale).toBe(0);
       });
 
       it("should handle leading/trailing zeros in strings", () => {
          let result = toDecimalNumber("012.340");
-         expect(result.val).toBe(12340); // Number("012" + "340") -> 12340
+         expect(result.val).toBe(12340n); // Number("012" + "340") -> 12340
          expect(result.scale).toBe(3); // "340".length -> 3
          expect(result.toString()).toBe("12.340"); // Formatting should reflect original precision intent
 
          result = toDecimalNumber("0.050");
-         expect(result.val).toBe(50); // Number("0" + "050") -> 50
+         expect(result.val).toBe(50n); // Number("0" + "050") -> 50
          expect(result.scale).toBe(3); // "050".length -> 3
          expect(result.toString()).toBe("0.050");
       });
@@ -214,7 +214,7 @@ describe("DecimalNumber Class and Utilities", () => {
          // Number('12' + '') -> 12, scale = ''.length -> 0. This might be unexpected.
          // Depending on desired behavior, you might want to add validation for this.
          const result = toDecimalNumber("12.");
-         expect(result.val).toBe(12);
+         expect(result.val).toBe(12n);
          expect(result.scale).toBe(0);
          // If strict validation is needed, uncomment the expect.toThrow below and modify the function.
          // expect(() => toDecimalNumber("12.")).toThrow("12. is not a valid decimal number");
@@ -222,7 +222,7 @@ describe("DecimalNumber Class and Utilities", () => {
 
       it("should throw error for invalid string format (starts with dot)", () => {
          const result = toDecimalNumber(".123"); // Interpreted as 0.123
-         expect(result.val).toBe(123); // Number('' + '123') -> 123
+         expect(result.val).toBe(123n); // Number('' + '123') -> 123
          expect(result.scale).toBe(3); // '123'.length -> 3
          // If strict validation is needed, uncomment the expect.toThrow below and modify the function.
          // expect(() => toDecimalNumber(".123")).toThrow(".123 is not a valid decimal number");
@@ -230,20 +230,20 @@ describe("DecimalNumber Class and Utilities", () => {
 
       it("should throw error for non-numeric strings", () => {
          expect(() => toDecimalNumber("abc")).toThrow(
-            "abc is not a valid decimal number",
+            "abc is not a number",
          );
          expect(() => toDecimalNumber("12a.34")).toThrow(
-            "12a.34 is not a valid decimal number",
+            "12a.34 is not a number",
          ); // Fails assertIsSafeNumber
          expect(() => toDecimalNumber("12.3a4")).toThrow(
-            "12.3a4 is not a valid decimal number",
+            "12.3a4 is not a number",
          ); // Fails assertIsSafeNumber
       });
 
       it("should throw error for empty string", () => {
          // Number('') -> 0, so it currently converts to DecimalNumber(0, 0)
          const result = toDecimalNumber("");
-         expect(result.val).toBe(0);
+         expect(result.val).toBe(0n);
          expect(result.scale).toBe(0);
          // If strict validation is needed:
          // expect(() => toDecimalNumber("")).toThrow(" is not a valid decimal number");
@@ -252,7 +252,7 @@ describe("DecimalNumber Class and Utilities", () => {
       it("should handle strings with whitespace (implicitly via toString)", () => {
          // Number(" 12.34 ".toString()) works
          const result = toDecimalNumber(" 12.34 ");
-         expect(result.val).toBe(1234);
+         expect(result.val).toBe(1234n);
          expect(result.scale).toBe(2);
          // If strict validation against whitespace is needed, add checks in toDecimalNumber.
       });
@@ -278,14 +278,14 @@ describe("DecimalNumber Class and Utilities", () => {
       it("should handle MAX_SAFE_INTEGER correctly", () => {
          const maxSafe = Number.MAX_SAFE_INTEGER; // 9007199254740991
          const result = toDecimalNumber(maxSafe);
-         expect(result.val).toBe(maxSafe);
+         expect(result.val).toBe(BigInt(maxSafe));
          expect(result.scale).toBe(0);
       });
 
       it("should handle MIN_SAFE_INTEGER correctly", () => {
          const minSafe = Number.MIN_SAFE_INTEGER; // -9007199254740991
          const result = toDecimalNumber(minSafe);
-         expect(result.val).toBe(minSafe);
+         expect(result.val).toBe(BigInt(minSafe));
          expect(result.scale).toBe(0);
       });
 
@@ -319,7 +319,7 @@ describe("DecimalNumber Class and Utilities", () => {
       // --- Basic Cases ---
       it("should add two positive decimals (same scale)", () => {
          const result = decimalAdd(dn(123, 2), dn(456, 2)); // 1.23 + 4.56
-         expect(result.val).toBe(579);
+         expect(result.val).toBe(579n);
          expect(result.scale).toBe(2);
          expect(result.toString()).toBe("5.79");
       });
@@ -328,14 +328,14 @@ describe("DecimalNumber Class and Utilities", () => {
          const result = decimalAdd(dn(12345, 3), dn(67, 1)); // 12.345 + 6.7
          // 6.7 -> 6700 (scale 3)
          // 12345 + 6700 = 19045
-         expect(result.val).toBe(19045);
+         expect(result.val).toBe(19045n);
          expect(result.scale).toBe(3);
          expect(result.toString()).toBe("19.045");
       });
 
       it("should add two positive decimals (different scales, b > a)", () => {
          const result = decimalAdd(dn(67, 1), dn(12345, 3)); // 6.7 + 12.345
-         expect(result.val).toBe(19045);
+         expect(result.val).toBe(19045n);
          expect(result.scale).toBe(3);
          expect(result.toString()).toBe("19.045");
       });
@@ -343,14 +343,14 @@ describe("DecimalNumber Class and Utilities", () => {
       // --- Zero Cases ---
       it("should add zero correctly (a + 0)", () => {
          const result = decimalAdd(dn(123, 2), dn(0, 0)); // 1.23 + 0
-         expect(result.val).toBe(123); // 0 * 10**(2-0) = 0; 123 + 0 = 123
+         expect(result.val).toBe(123n); // 0 * 10**(2-0) = 0; 123 + 0 = 123
          expect(result.scale).toBe(2);
          expect(result.toString()).toBe("1.23");
       });
 
       it("should add zero correctly (0 + b)", () => {
          const result = decimalAdd(dn(0, 1), dn(456, 3)); // 0.0 + 0.456
-         expect(result.val).toBe(456); // 0 * 10**(3-1) = 0; 0 + 456 = 456
+         expect(result.val).toBe(456n); // 0 * 10**(3-1) = 0; 0 + 456 = 456
          expect(result.scale).toBe(3);
          expect(result.toString()).toBe("0.456");
       });
@@ -358,14 +358,14 @@ describe("DecimalNumber Class and Utilities", () => {
       // --- Negative Cases ---
       it("should add a positive and a negative decimal (result positive)", () => {
          const result = decimalAdd(dn(500, 2), dn(-123, 2)); // 5.00 + (-1.23)
-         expect(result.val).toBe(377);
+         expect(result.val).toBe(377n);
          expect(result.scale).toBe(2);
          expect(result.toString()).toBe("3.77");
       });
 
       it("should add a positive and a negative decimal (result negative)", () => {
          const result = decimalAdd(dn(123, 2), dn(-500, 2)); // 1.23 + (-5.00)
-         expect(result.val).toBe(-377);
+         expect(result.val).toBe(-377n);
          expect(result.scale).toBe(2);
          expect(result.toString()).toBe("-3.77");
       });
@@ -374,7 +374,7 @@ describe("DecimalNumber Class and Utilities", () => {
          const result = decimalAdd(dn(-123, 2), dn(-45, 1)); // -1.23 + (-4.5)
          // -4.5 -> -450 (scale 2)
          // -123 + (-450) = -573
-         expect(result.val).toBe(-573);
+         expect(result.val).toBe(-573n);
          expect(result.scale).toBe(2);
          expect(result.toString()).toBe("-5.73");
       });
@@ -387,7 +387,7 @@ describe("DecimalNumber Class and Utilities", () => {
          const num1 = toDecimalNumber("90071992547400.00"); // val = 9007199254740000, scale = 2
          const num2 = toDecimalNumber("99.99"); // val = 9999, scale = 2
          const result = decimalAdd(num1, num2);
-         expect(result.val).toBe(9007199254740000 + 9999);
+         expect(result.val).toBe(9007199254740000n + 9999n);
          expect(result.scale).toBe(2);
          expect(result.toString()).toBe("90071992547499.99"); // Check if calculation remains precise
       });
@@ -416,14 +416,14 @@ describe("DecimalNumber Class and Utilities", () => {
       // --- Basic Cases ---
       it("should subtract two positive decimals (same scale, a > b)", () => {
          const result = decimalSubtract(dn(567, 2), dn(123, 2)); // 5.67 - 1.23
-         expect(result.val).toBe(444);
+         expect(result.val).toBe(444n);
          expect(result.scale).toBe(2);
          expect(result.toString()).toBe("4.44");
       });
 
       it("should subtract two positive decimals (same scale, b > a)", () => {
          const result = decimalSubtract(dn(123, 2), dn(567, 2)); // 1.23 - 5.67
-         expect(result.val).toBe(-444);
+         expect(result.val).toBe(-444n);
          expect(result.scale).toBe(2);
          expect(result.toString()).toBe("-4.44");
       });
@@ -432,7 +432,7 @@ describe("DecimalNumber Class and Utilities", () => {
          const result = decimalSubtract(dn(12345, 3), dn(67, 1)); // 12.345 - 6.7
          // 6.7 -> 6700 (scale 3)
          // 12345 - 6700 = 5645
-         expect(result.val).toBe(5645);
+         expect(result.val).toBe(5645n);
          expect(result.scale).toBe(3);
          expect(result.toString()).toBe("5.645");
       });
@@ -441,7 +441,7 @@ describe("DecimalNumber Class and Utilities", () => {
          const result = decimalSubtract(dn(67, 1), dn(12345, 3)); // 6.7 - 12.345
          // 6.7 -> 6700 (scale 3)
          // 6700 - 12345 = -5645
-         expect(result.val).toBe(-5645);
+         expect(result.val).toBe(-5645n);
          expect(result.scale).toBe(3);
          expect(result.toString()).toBe("-5.645");
       });
@@ -450,7 +450,7 @@ describe("DecimalNumber Class and Utilities", () => {
       it("should subtract zero correctly (a - 0)", () => {
          const result = decimalSubtract(dn(123, 2), dn(0, 0)); // 1.23 - 0
          // bExtended = 0 * 10**(2-0) = 0; a.val - bExtended = 123 - 0 = 123
-         expect(result.val).toBe(123);
+         expect(result.val).toBe(123n);
          expect(result.scale).toBe(2);
          expect(result.toString()).toBe("1.23");
       });
@@ -458,7 +458,7 @@ describe("DecimalNumber Class and Utilities", () => {
       it("should subtract from zero correctly (0 - b)", () => {
          const result = decimalSubtract(dn(0, 1), dn(456, 3)); // 0.0 - 0.456
          // aExtended = 0 * 10**(3-1) = 0; aExtended - b.val = 0 - 456 = -456
-         expect(result.val).toBe(-456);
+         expect(result.val).toBe(-456n);
          expect(result.scale).toBe(3);
          expect(result.toString()).toBe("-0.456");
       });
@@ -467,7 +467,7 @@ describe("DecimalNumber Class and Utilities", () => {
       it("should subtract a negative from a positive (a - (-b))", () => {
          const result = decimalSubtract(dn(500, 2), dn(-123, 2)); // 5.00 - (-1.23)
          // bExtended = -123; a.val - bExtended = 500 - (-123) = 623
-         expect(result.val).toBe(623);
+         expect(result.val).toBe(623n);
          expect(result.scale).toBe(2);
          expect(result.toString()).toBe("6.23");
       });
@@ -475,7 +475,7 @@ describe("DecimalNumber Class and Utilities", () => {
       it("should subtract a positive from a negative ((-a) - b)", () => {
          const result = decimalSubtract(dn(-123, 2), dn(500, 2)); // -1.23 - 5.00
          // bExtended = 500; a.val - bExtended = -123 - 500 = -623
-         expect(result.val).toBe(-623);
+         expect(result.val).toBe(-623n);
          expect(result.scale).toBe(2);
          expect(result.toString()).toBe("-6.23");
       });
@@ -485,13 +485,12 @@ describe("DecimalNumber Class and Utilities", () => {
          // b scale < a scale
          // bExtended = -45 * 10**(2-1) = -450
          // a.val - bExtended = -123 - (-450) = 327
-         expect(result.val).toBe(327);
+         expect(result.val).toBe(327n);
          expect(result.scale).toBe(2);
          expect(result.toString()).toBe("3.27");
       });
 
-      // --- Potential Overflow/Precision Issues ---
-      // Similar warnings apply as for addition regarding MAX_SAFE_INTEGER
+      
       it("MAY FAIL OR BE IMPRECISE: should handle subtraction potentially resulting in large negative numbers", () => {
          const minSafe = Number.MIN_SAFE_INTEGER;
          const num1 = new DecimalNumber(minSafe + 10, 0); // -9007199254740981
@@ -515,7 +514,7 @@ describe("DecimalNumber Class and Utilities", () => {
          const result = decimalMultiply(dn(12, 1), dn(34, 1)); // 1.2 * 3.4
          // val = 12 * 34 = 408
          // scale = 1 + 1 = 2
-         expect(result.val).toBe(408);
+         expect(result.val).toBe(408n);
          expect(result.scale).toBe(2);
          expect(result.toString()).toBe("4.08"); // Corrected expected string
       });
@@ -524,7 +523,7 @@ describe("DecimalNumber Class and Utilities", () => {
          const result = decimalMultiply(dn(123, 2), dn(5, 1)); // 1.23 * 0.5
          // val = 123 * 5 = 615
          // scale = 2 + 1 = 3
-         expect(result.val).toBe(615);
+         expect(result.val).toBe(615n);
          expect(result.scale).toBe(3);
          expect(result.toString()).toBe("0.615");
       });
@@ -532,14 +531,14 @@ describe("DecimalNumber Class and Utilities", () => {
       // --- Zero Cases ---
       it("should multiply by zero (a * 0)", () => {
          const result = decimalMultiply(dn(123, 2), dn(0, 1)); // 1.23 * 0.0
-         expect(result.val).toBe(0); // 123 * 0 = 0
+         expect(result.val).toBe(0n); // 123 * 0 = 0
          expect(result.scale).toBe(3); // 2 + 1 = 3
          expect(result.toString()).toBe("0.000");
       });
 
       it("should multiply zero by a number (0 * b)", () => {
          const result = decimalMultiply(dn(0, 1), dn(456, 3)); // 0.0 * 0.456
-         expect(result.val).toBe(0); // 0 * 456 = 0
+         expect(result.val).toBe(0n); // 0 * 456 = 0
          expect(result.scale).toBe(4); // 1 + 3 = 4
          expect(result.toString()).toBe("0.0000");
       });
@@ -549,7 +548,7 @@ describe("DecimalNumber Class and Utilities", () => {
          const result = decimalMultiply(dn(25, 1), dn(-4, 1)); // 2.5 * -0.4
          // val = 25 * -4 = -100
          // scale = 1 + 1 = 2
-         expect(result.val).toBe(-100);
+         expect(result.val).toBe(-100n);
          expect(result.scale).toBe(2);
          expect(result.toString()).toBe("-1.00");
       });
@@ -558,28 +557,23 @@ describe("DecimalNumber Class and Utilities", () => {
          const result = decimalMultiply(dn(-15, 1), dn(-20, 2)); // -1.5 * -0.20
          // val = -15 * -20 = 300
          // scale = 1 + 2 = 3
-         expect(result.val).toBe(300);
+         expect(result.val).toBe(300n);
          expect(result.scale).toBe(3);
          expect(result.toString()).toBe("0.300");
       });
 
-      // // --- Potential Overflow/Precision Issues ---
-      // // Multiplication can very quickly exceed MAX_SAFE_INTEGER
-      // it("MAY FAIL OR BE IMPRECISE: should handle multiplication potentially exceeding MAX_SAFE_INTEGER", () => {
-      //    const largeVal = 300000000; // 3 * 10^8
-      //    const num1 = new DecimalNumber(largeVal, 2); // 3,000,000.00
-      //    const num2 = new DecimalNumber(largeVal, 2); // 3,000,000.00
-      //    const result = decimalMultiply(num1, num2);
-      //    // Expected precise val: 300000000 * 300000000 = 9 * 10^16 = 90,000,000,000,000,000
-      //    // MAX_SAFE_INTEGER is ~9 * 10^15
-      //    // Expected precise scale: 2 + 2 = 4
-      //    console.warn(
-      //       `WARN: Testing multiplication potentially exceeding MAX_SAFE_INTEGER. Result val might be imprecise: ${result.val}`,
-      //    );
-      //    // The result.val will likely be incorrect due to number limitations.
-      //    expect(result.val).not.toBe(90000000000000000); // It won't be the precise value
-      //    expect(result.scale).toBe(4);
-      //    // A robust implementation would throw an error here.
-      // });
+      it("should handle multiplication potentially exceeding MAX_SAFE_INTEGER", () => {
+         const largeVal = 300000000; // 3 * 10^8
+         const num1 = new DecimalNumber(largeVal, 2); // 3,000,000.00
+         const num2 = new DecimalNumber(largeVal, 2); // 3,000,000.00
+         const result = decimalMultiply(num1, num2);
+         console.warn(
+            `WARN: Testing multiplication potentially exceeding MAX_SAFE_INTEGER. Result val might be imprecise: ${result.val}`,
+         );
+         // The result.val will likely be incorrect due to number limitations.
+         expect(result.val).toBe(90000000000000000n); // It won't be the precise value
+         expect(result.scale).toBe(4);
+         // A robust implementation would throw an error here.
+      });
    });
 });

@@ -1,3 +1,5 @@
+import { Bigmath } from "./bigmath";
+
 /**
  * Represents a decimal number with a specific scale (number of decimal places).
  *
@@ -5,14 +7,17 @@
  * @param {bigint} scale - The number of decimal places. For example, for 12.345, `scale` would be 3.
  */
 export class DecimalNumber {
-   val: number;
+   val: bigint;
    scale: number;
-   constructor(val: number, scale: number) {
-      if (Number.isInteger(val) && Number.isInteger(scale)) {
+   constructor(val: bigint | number, scale: number) {
+      if (typeof val === "number" && !Number.isInteger(val)) {
+         throw new Error(`val must be an integer`);
+      }
+      if (Number.isInteger(scale)) {
          this.scale = scale;
-         this.val = val;
+         this.val = BigInt(val);
       } else {
-         throw new Error(`val and scale must both be integers`);
+         throw new Error(`scale must be an integer`);
       }
    }
    /**
@@ -25,7 +30,7 @@ export class DecimalNumber {
     * ```
     */
    toString(): string {
-      const valStr = Math.abs(this.val).toString();
+      const valStr = Bigmath.abs(this.val).toString();
       const scale = this.scale;
       const isNegative = this.val < 0;
 
@@ -42,6 +47,9 @@ export class DecimalNumber {
 
 function assertIsSafeNumber(value: number, source: number | string): number {
    if (Number.isNaN(value)) {
+      throw new Error(`${source} is not a number`);
+   }
+   if (!Number.isFinite(value)) {
       throw new Error(`${source} is not a number`);
    }
    if (value > Number.MAX_SAFE_INTEGER) {
@@ -65,7 +73,7 @@ function assertIsSafeNumber(value: number, source: number | string): number {
  * ```
  */
 export function toDecimalNumber(arg: number | string): DecimalNumber {
-   const num = arg.toString();
+   const num = arg.toString().trim();
    const split = num.split(".");
    let value: number;
    let scale: number;
@@ -104,9 +112,9 @@ export function decimalAdd(a: DecimalNumber, b: DecimalNumber): DecimalNumber {
    const maxDecimal = a.scale > b.scale ? a : b;
    const smallDecimal = a.scale > b.scale ? b : a;
    const largeDecimalLength = maxDecimal.scale;
-   const smallDecimalLength = smallDecimal.scale;
+   const smallDecimalLength = BigInt(smallDecimal.scale);
    const smallValExtended =
-      smallDecimal.val * 10 ** (largeDecimalLength - smallDecimalLength);
+      smallDecimal.val * 10n ** (BigInt(largeDecimalLength) - smallDecimalLength);
 
    return new DecimalNumber(
       maxDecimal.val + smallValExtended,
@@ -137,14 +145,14 @@ export function decimalSubtract(
    const largeDecimalLength = maxDecimal.scale;
 
    if (a.scale === largeDecimalLength) {
-      const bExtended = b.val * 10 ** (largeDecimalLength - b.scale);
+      const bExtended = b.val * 10n ** (BigInt(largeDecimalLength) - BigInt(b.scale));
       const hold = {
          val: a.val - bExtended,
          scale: largeDecimalLength,
       };
       return new DecimalNumber(hold.val, hold.scale);
    } else {
-      const aExtended = a.val * 10 ** (largeDecimalLength - a.scale);
+      const aExtended = a.val * 10n ** (BigInt(largeDecimalLength) - BigInt(a.scale));
       const hold = {
          val: aExtended - b.val,
          scale: largeDecimalLength,
